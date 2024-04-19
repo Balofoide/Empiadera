@@ -1,9 +1,11 @@
 [package]
-name = "teste"
+name = "WWEmpilhadeiras"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[build]
+target = "x86_64-pc-windows-msvc"
 
 [dependencies]
 eframe = "0.27.2"
@@ -11,4 +13,5 @@ chrono = "0.4.37"
 libc = "0.2"
 nfd = "0.0.4"
 
- 
+[target.'cfg(windows)']
+windows_subsystem = "windows"

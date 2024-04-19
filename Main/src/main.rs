@@ -1,3 +1,4 @@
+#![windows_subsystem = "windows"]
 use chrono::{NaiveDate, Local};
 use eframe::egui;
 use nfd::Response;
