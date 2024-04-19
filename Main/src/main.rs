@@ -1,5 +1,8 @@
 use chrono::{NaiveDate, Local};
 use eframe::egui;
+use std::error::Error;
+use std::fs::File;
+use std::io::prelude::*;
 
 const MAX_PANEL_HEIGHT: f32 = 200.0;
 
@@ -166,8 +169,38 @@ impl eframe::App for MyApp {
             let total_balance_text = format!("Rendimento Total: R$ {:.2}", total_balance);
             ui.add(egui::Label::new(total_balance_text));
 
-            
-       
+            // Salvando os registros em um arquivo CSV
+            if ui.button("Salvar CSV").clicked() {
+                if let Err(err) = save_to_csv(&self.entries) {
+                    eprintln!("Erro ao salvar o arquivo CSV: {}", err);
+                }
+            }
         });
     }
+}
+
+fn save_to_csv(entries: &[Entry]) -> Result<(), Box<dyn Error>> {
+    let mut file = File::create("registros.csv")?;
+    writeln!(file, "Nome;Lucro;Gastos;Saldo;Dias;Data;Descricao")?;
+    for entry in entries {
+        let balance = entry.balance();
+        let (days_rented, registration_date) = match &entry.contract_type {
+            ContractType::Daily { days_rented, registration_date } => {
+                (days_rented.to_string(), registration_date.to_string())
+            }
+            ContractType::None => ("Nenhum".to_string(), "".to_string()),
+        };
+        writeln!(
+            file,
+            "\"{}\";{:.2};{:.2};{:.2};\"{}\";\"{}\";\"{}\"",
+            entry.name,
+            entry.profit,
+            entry.expenses,
+            balance,
+            days_rented,
+            registration_date,
+            entry.description
+        )?;
+    }
+    Ok(())
 }
