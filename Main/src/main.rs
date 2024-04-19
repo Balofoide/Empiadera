@@ -1,8 +1,10 @@
 use chrono::{NaiveDate, Local};
 use eframe::egui;
+use nfd::Response;
 use std::error::Error;
 use std::fs::File;
-use std::io::prelude::*;
+use std::io::{self, prelude::*};
+use std::path::Path;
 
 const MAX_PANEL_HEIGHT: f32 = 200.0;
 
@@ -110,7 +112,7 @@ impl eframe::App for MyApp {
                     let contract_type = if days_rented > 0 {
                         ContractType::Daily {
                             days_rented,
-                            registration_date: Local::today().naive_local(),
+                            registration_date: Local::now().naive_local().date(),
                         }
                     } else {
                         ContractType::None
@@ -135,6 +137,27 @@ impl eframe::App for MyApp {
                     // Se a conversão falhar, você pode lidar com isso aqui
                 }
             }
+
+            ui.separator();
+
+            ui.horizontal(|ui| {
+                if ui.button("Carregar CSV").clicked() {
+                    match nfd::open_file_dialog(Some("csv"), None).unwrap() {
+                        Response::Okay(file_path) => {
+                            match load_from_csv(&file_path) {
+                                Ok(entries) => self.entries = entries,
+                                Err(err) => eprintln!("Erro ao carregar o arquivo CSV: {}", err),
+                            }
+                        }
+                        _ => {} // O usuário cancelou a seleção do arquivo
+                    }
+                }
+                if ui.button("Salvar CSV").clicked() {
+                    if let Err(err) = save_to_csv(&self.entries) {
+                        eprintln!("Erro ao salvar o arquivo CSV: {}", err);
+                    }
+                }
+            });
 
             ui.separator();
 
@@ -168,19 +191,12 @@ impl eframe::App for MyApp {
             ui.separator();
             let total_balance_text = format!("Rendimento Total: R$ {:.2}", total_balance);
             ui.add(egui::Label::new(total_balance_text));
-
-            // Salvando os registros em um arquivo CSV
-            if ui.button("Salvar CSV").clicked() {
-                if let Err(err) = save_to_csv(&self.entries) {
-                    eprintln!("Erro ao salvar o arquivo CSV: {}", err);
-                }
-            }
         });
     }
 }
 
 fn save_to_csv(entries: &[Entry]) -> Result<(), Box<dyn Error>> {
-    let mut file = File::create("registros.csv")?;
+    let mut file = File::create("registros_empilhadeira.csv")?;
     writeln!(file, "Nome;Lucro;Gastos;Saldo;Dias;Data;Descricao")?;
     for entry in entries {
         let balance = entry.balance();
@@ -204,3 +220,41 @@ fn save_to_csv(entries: &[Entry]) -> Result<(), Box<dyn Error>> {
     }
     Ok(())
 }
+
+fn load_from_csv(file_path: &str) -> Result<Vec<Entry>, Box<dyn Error>> {
+    let mut entries = Vec::new();
+    if Path::new(file_path).exists() {
+        let file = File::open(file_path)?;
+        let reader = io::BufReader::new(file);
+        for line in reader.lines().skip(1) {
+            let line = line?;
+            let mut fields = line.split(';').map(|s| s.trim_matches('"')).collect::<Vec<_>>();
+            if fields.len() >= 7 {
+                let name = fields[0].to_string();
+                let profit = fields[1].parse::<f32>().unwrap_or(0.0);
+                let expenses = fields[2].parse::<f32>().unwrap_or(0.0);
+                let balance = fields[3].parse::<f32>().unwrap_or(0.0);
+                let days_rented = fields[4].to_string();
+                let registration_date = fields[5].to_string();
+                let description = fields[6].to_string();
+                let contract_type = if days_rented != "0" {
+                    ContractType::Daily {
+                        days_rented: days_rented.parse().unwrap_or(0),
+                        registration_date: NaiveDate::parse_from_str(&registration_date, "%Y-%m-%d").unwrap_or_else(|_| NaiveDate::from_ymd(1970, 1, 1)),
+                    }
+                } else {
+                    ContractType::None
+                };
+                entries.push(Entry {
+                    name,
+                    profit,
+                    expenses,
+                    contract_type,
+                    description,
+                });
+            }
+        }
+    }
+    Ok(entries)
+}
+
