@@ -24,11 +24,11 @@ fn contract_type_to_string(contract_type: &ContractType) -> String {
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([500.0, 500.0]), // Definindo o tamanho da janela
+        viewport: egui::ViewportBuilder::default().with_inner_size([600.0, 600.0]), // Tamanho da janela
         ..Default::default()
     };
     eframe::run_native(
-        "Registro de Lucros e Gastos - Empilhadeiras",
+        "WWEmpilhadeiras",
         options,
         Box::new(|cc| {
             Box::<MyApp>::default()
@@ -80,27 +80,28 @@ impl eframe::App for MyApp {
             ui.horizontal(|ui| {
                 let name_label = ui.label("Nome da Empilhadeira: ");
                 ui.text_edit_singleline(&mut self.name)
-                    .labelled_by(name_label.id);
+                    .labelled_by(name_label.id)
+                    // .desired_width(200.0);
             });
 
             ui.horizontal(|ui| {
                 ui.label("Lucro: R$ ");
-                ui.add(egui::widgets::TextEdit::singleline(&mut self.profit));
+                ui.add(egui::widgets::TextEdit::singleline(&mut self.profit).desired_width(100.0));
             });
 
             ui.horizontal(|ui| {
                 ui.label("Gastos: R$ ");
-                ui.add(egui::widgets::TextEdit::singleline(&mut self.expenses));
+                ui.add(egui::widgets::TextEdit::singleline(&mut self.expenses).desired_width(100.0));
             });
 
             ui.horizontal(|ui| {
                 ui.label("Dias Alugada: ");
-                ui.add(egui::widgets::TextEdit::singleline(&mut self.days_rented));
+                ui.add(egui::widgets::TextEdit::singleline(&mut self.days_rented).desired_width(50.0));
             });
 
             ui.horizontal(|ui| {
                 ui.label("Descrição: ");
-                ui.add(egui::widgets::TextEdit::singleline(&mut self.description));
+                ui.add(egui::widgets::TextEdit::singleline(&mut self.description).desired_width(200.0));
             });
 
             if ui.button("Registrar").clicked() {
@@ -196,10 +197,13 @@ impl eframe::App for MyApp {
 }
 
 fn save_to_csv(entries: &[Entry]) -> Result<(), Box<dyn Error>> {
-    let response = nfd::open_save_dialog(Some("csv"), None)?;
+    let response = nfd::open_pick_folder(None)?;
     match response {
-        Response::Okay(file_path) => {
-            let mut file = File::create(file_path)?;
+        Response::Okay(folder_path) => {
+            let file_name = "Relatorio_Empilhadeira.csv";
+            let file_path = format!("{}/{}", folder_path, file_name);
+            let mut file = File::create(&file_path)?;
+
             writeln!(file, "Nome;Lucro;Gastos;Saldo;Dias;Data;Descricao")?;
             for entry in entries {
                 let balance = entry.balance();
@@ -209,6 +213,7 @@ fn save_to_csv(entries: &[Entry]) -> Result<(), Box<dyn Error>> {
                     }
                     ContractType::None => ("Nenhum".to_string(), "".to_string()),
                 };
+
                 writeln!(
                     file,
                     "\"{}\";{:.2};{:.2};{:.2};\"{}\";\"{}\";\"{}\"",
@@ -224,12 +229,13 @@ fn save_to_csv(entries: &[Entry]) -> Result<(), Box<dyn Error>> {
             Ok(())
         }
         Response::Cancel => {
-            // User canceled the operation
+            // O usuário cancelou a operação
             Ok(())
         }
-        _ => Err("Unsupported operation".into()),
+        _ => Err("Operação não suportada".into()),
     }
 }
+
 
 fn load_from_csv(file_path: &str) -> Result<Vec<Entry>, Box<dyn Error>> {
     let mut entries = Vec::new();
@@ -267,4 +273,3 @@ fn load_from_csv(file_path: &str) -> Result<Vec<Entry>, Box<dyn Error>> {
     }
     Ok(entries)
 }
-
