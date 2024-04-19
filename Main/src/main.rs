@@ -135,6 +135,7 @@ impl eframe::App for MyApp {
 
             ui.heading("Registros:");
 
+            let mut total_balance = 0.0;
             ui.horizontal(|ui| {
                 ui.label("Empilhadeira");
                 ui.label("Lucro");
@@ -150,12 +151,17 @@ impl eframe::App for MyApp {
                         ui.label(&entry.name);
                         ui.label(&format!("R$ {:.2}", entry.profit));
                         ui.label(&format!("R$ {:.2}", entry.expenses));
-                        ui.label(&format!("R$ {:.2}", entry.balance()));
+                        let balance = entry.balance();
+                        total_balance += balance;
+                        ui.label(&format!("R$ {:.2}", balance));
                         ui.label(&contract_type_to_string(&entry.contract_type));
                         ui.label(&entry.description);
                     });
                 }
             });
+
+            // Exibir o valor total de saldo
+            ui.label(format!("Rendimento Total: R$ {:.2}", total_balance));
         });
     }
 }
