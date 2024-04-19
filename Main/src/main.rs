@@ -196,29 +196,39 @@ impl eframe::App for MyApp {
 }
 
 fn save_to_csv(entries: &[Entry]) -> Result<(), Box<dyn Error>> {
-    let mut file = File::create("registros_empilhadeira.csv")?;
-    writeln!(file, "Nome;Lucro;Gastos;Saldo;Dias;Data;Descricao")?;
-    for entry in entries {
-        let balance = entry.balance();
-        let (days_rented, registration_date) = match &entry.contract_type {
-            ContractType::Daily { days_rented, registration_date } => {
-                (days_rented.to_string(), registration_date.to_string())
+    let response = nfd::open_save_dialog(Some("csv"), None)?;
+    match response {
+        Response::Okay(file_path) => {
+            let mut file = File::create(file_path)?;
+            writeln!(file, "Nome;Lucro;Gastos;Saldo;Dias;Data;Descricao")?;
+            for entry in entries {
+                let balance = entry.balance();
+                let (days_rented, registration_date) = match &entry.contract_type {
+                    ContractType::Daily { days_rented, registration_date } => {
+                        (days_rented.to_string(), registration_date.to_string())
+                    }
+                    ContractType::None => ("Nenhum".to_string(), "".to_string()),
+                };
+                writeln!(
+                    file,
+                    "\"{}\";{:.2};{:.2};{:.2};\"{}\";\"{}\";\"{}\"",
+                    entry.name,
+                    entry.profit,
+                    entry.expenses,
+                    balance,
+                    days_rented,
+                    registration_date,
+                    entry.description
+                )?;
             }
-            ContractType::None => ("Nenhum".to_string(), "".to_string()),
-        };
-        writeln!(
-            file,
-            "\"{}\";{:.2};{:.2};{:.2};\"{}\";\"{}\";\"{}\"",
-            entry.name,
-            entry.profit,
-            entry.expenses,
-            balance,
-            days_rented,
-            registration_date,
-            entry.description
-        )?;
+            Ok(())
+        }
+        Response::Cancel => {
+            // User canceled the operation
+            Ok(())
+        }
+        _ => Err("Unsupported operation".into()),
     }
-    Ok(())
 }
 
 fn load_from_csv(file_path: &str) -> Result<Vec<Entry>, Box<dyn Error>> {
