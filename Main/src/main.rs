@@ -1,6 +1,8 @@
 use chrono::{NaiveDate, Local};
 use eframe::egui;
 
+const MAX_PANEL_HEIGHT: f32 = 200.0;
+
 enum ContractType {
     Daily { days_rented: u32, registration_date: NaiveDate },
     None,
@@ -17,7 +19,7 @@ fn contract_type_to_string(contract_type: &ContractType) -> String {
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([600.0, 400.0]),
+        viewport: egui::ViewportBuilder::default().with_inner_size([500.0, 500.0]), // Definindo o tamanho da janela
         ..Default::default()
     };
     eframe::run_native(
@@ -145,7 +147,8 @@ impl eframe::App for MyApp {
                 ui.label("Descrição");
             });
 
-            egui::ScrollArea::vertical().show(ui, |ui| {
+            let scroll_area = egui::ScrollArea::vertical().max_height(MAX_PANEL_HEIGHT);
+            scroll_area.show(ui, |ui| {
                 for entry in &self.entries {
                     ui.horizontal(|ui| {
                         ui.label(&entry.name);
@@ -159,9 +162,12 @@ impl eframe::App for MyApp {
                     });
                 }
             });
+            ui.separator();
+            let total_balance_text = format!("Rendimento Total: R$ {:.2}", total_balance);
+            ui.add(egui::Label::new(total_balance_text));
 
-            // Exibir o valor total de saldo
-            ui.label(format!("Rendimento Total: R$ {:.2}", total_balance));
+            
+       
         });
     }
 }
