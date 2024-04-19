@@ -1,19 +1,17 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-
+use chrono::{NaiveDate, Local};
 use eframe::egui;
 
 enum ContractType {
-    Daily,
-    Weekly,
-    Monthly,
+    Daily { days_rented: u32, registration_date: NaiveDate },
+    None,
 }
 
-fn contract_type_to_string(contract_type: &Option<ContractType>) -> String {
+fn contract_type_to_string(contract_type: &ContractType) -> String {
     match contract_type {
-        Some(ContractType::Daily) => "Diário".to_string(),
-        Some(ContractType::Weekly) => "Semanal".to_string(),
-        Some(ContractType::Monthly) => "Mensal".to_string(),
-        None => "Nenhum".to_string(),
+        ContractType::Daily { days_rented, registration_date } => {
+            format!("{} dias | {}", days_rented, registration_date)
+        }
+        ContractType::None => "Nenhum".to_string(),
     }
 }
 
@@ -35,7 +33,8 @@ struct Entry {
     name: String,
     profit: f32,
     expenses: f32,
-    contract_type: Option<ContractType>,
+    contract_type: ContractType,
+    description: String,
 }
 
 impl Entry {
@@ -48,9 +47,8 @@ struct MyApp {
     name: String,
     profit: String,
     expenses: String,
-    daily_checked: bool,
-    weekly_checked: bool,
-    monthly_checked: bool,
+    days_rented: String,
+    description: String,
     entries: Vec<Entry>,
 }
 
@@ -60,9 +58,8 @@ impl Default for MyApp {
             name: String::new(),
             profit: String::new(),
             expenses: String::new(),
-            daily_checked: false,
-            weekly_checked: false,
-            monthly_checked: false,
+            days_rented: String::new(),
+            description: String::new(),
             entries: Vec::new(),
         }
     }
@@ -90,33 +87,28 @@ impl eframe::App for MyApp {
             });
 
             ui.horizontal(|ui| {
-                if ui.checkbox(&mut self.daily_checked, "Diário").clicked() {
-                    self.daily_checked = true;
-                    self.weekly_checked = false;
-                    self.monthly_checked = false;
-                }
-                if ui.checkbox(&mut self.weekly_checked, "Semanal").clicked() {
-                    self.daily_checked = false;
-                    self.weekly_checked = true;
-                    self.monthly_checked = false;
-                }
-                if ui.checkbox(&mut self.monthly_checked, "Mensal").clicked() {
-                    self.daily_checked = false;
-                    self.weekly_checked = false;
-                    self.monthly_checked = true;
-                }
+                ui.label("Dias Alugada: ");
+                ui.add(egui::widgets::TextEdit::singleline(&mut self.days_rented));
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Descrição: ");
+                ui.add(egui::widgets::TextEdit::singleline(&mut self.description));
             });
 
             if ui.button("Registrar").clicked() {
-                if let (Ok(profit), Ok(expenses)) = (self.profit.parse::<f32>(), self.expenses.parse::<f32>()) {
-                    let contract_type = if self.daily_checked {
-                        Some(ContractType::Daily)
-                    } else if self.weekly_checked {
-                        Some(ContractType::Weekly)
-                    } else if self.monthly_checked {
-                        Some(ContractType::Monthly)
+                if let (Ok(profit), Ok(expenses), Ok(days_rented)) = (
+                    self.profit.parse::<f32>(),
+                    self.expenses.parse::<f32>(),
+                    self.days_rented.parse::<u32>(),
+                ) {
+                    let contract_type = if days_rented > 0 {
+                        ContractType::Daily {
+                            days_rented,
+                            registration_date: Local::today().naive_local(),
+                        }
                     } else {
-                        None
+                        ContractType::None
                     };
 
                     let entry = Entry {
@@ -124,6 +116,7 @@ impl eframe::App for MyApp {
                         profit,
                         expenses,
                         contract_type,
+                        description: self.description.clone(),
                     };
                     self.entries.push(entry);
 
@@ -131,9 +124,8 @@ impl eframe::App for MyApp {
                     self.name.clear();
                     self.profit.clear();
                     self.expenses.clear();
-                    self.daily_checked = false;
-                    self.weekly_checked = false;
-                    self.monthly_checked = false;
+                    self.days_rented.clear();
+                    self.description.clear();
                 } else {
                     // Se a conversão falhar, você pode lidar com isso aqui
                 }
@@ -148,7 +140,8 @@ impl eframe::App for MyApp {
                 ui.label("Lucro");
                 ui.label("Gastos");
                 ui.label("Saldo");
-                ui.label("Tipo de Contrato");
+                ui.label("Dias");
+                ui.label("Descrição");
             });
 
             egui::ScrollArea::vertical().show(ui, |ui| {
@@ -159,6 +152,7 @@ impl eframe::App for MyApp {
                         ui.label(&format!("R$ {:.2}", entry.expenses));
                         ui.label(&format!("R$ {:.2}", entry.balance()));
                         ui.label(&contract_type_to_string(&entry.contract_type));
+                        ui.label(&entry.description);
                     });
                 }
             });
